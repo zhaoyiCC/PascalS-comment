@@ -1,26 +1,16 @@
-program zy (input, output);
-{var x:integer;}
-const N = 1000;
-const M = N;
-var x:integer;
-var ans: integer;
-var a: array[1..100] of integer;
-
-function wwork(yyy:integer): integer;
-var i:integer;
+program test(input,output);
+{$t+}
+var i,ans,j,k:integer;
+function mymax(x:integer; y:integer):integer;
 begin
-    wwork:=yyy;
-    for i:= 1 to 10 do
-        write(yyy);
-    writeln;
+	mymax:=x;
+	if (y>x) then 
+		mymax:=y;
 end;
-
 begin
-    ans:= wwork(1);
-    {readln(x);}
-    writeln('123');
-    x:=666;
-    writeln(x);
-    a[1] := x;
-    readln;
-end.   
+	ans:=0;
+	for i := 1 to 10 do
+		ans:= ans+i;
+	ans := ans + mymax(99,88);
+	writeln(ans);
+end.

@@ -1,0 +1,86 @@
+    0 program test(input,output);
+    0 {$t+}
+    0 var i,ans,j,k:integer;
+    0 function mymax(x:integer; y:integer):integer;
+    0 begin
+    0 	mymax:=x;
+    3 	if (y>x) then 
+    7 		mymax:=y;
+   10 end;
+   10 begin
+   11 	ans:=0;
+   14 	for i := 1 to 10 do
+   18 		ans:= ans+i;
+   24 	ans := ans + mymax(99,88);
+   32 	writeln(ans);
+   35 end.
+
+
+
+   identifiers  link  obj  typ  ref  nrm  lev  adr
+
+28              27    3    0    2    1    0   11
+29 i             0    1    1    0    1    1    5
+30 ans          29    1    1    0    1    1    6
+31 j            30    1    1    0    1    1    7
+32 k            31    1    1    0    1    1    8
+33 mymax        32    4    1    3    1    1    0
+34 x             0    1    1    0    1    2    5
+35 y            34    1    1    0    1    2    6
+
+
+
+blocks   last  lpar  psze  vsze
+
+   1       28    1    0    0
+   2       33   28    5    9
+   3       35   35    7    7
+
+
+
+arrays xtyp etyp eref low high elsz size
+
+
+
+
+code:
+
+    0   LDA      0    2    0,
+    1   LOD      1    2    5,
+    2   STO     38          ,
+    3   LOD      1    2    6,
+    4   LOD      1    2    5,
+    5   GRT     49          ,
+    6   JPC     11        10,
+    7   LDA      0    2    0,
+    8   LOD      1    2    6,
+    9   STO     38          ,
+   10   EXF     33          ,
+   11   LDA      0    1    6,
+   12   LDC     24         0,
+   13   STO     38          ,
+   14   LDA      0    1    5,
+   15   LDC     24         1,
+   16   LDC     24        10,
+   17   F1U     14        24,
+   18   LDA      0    1    6,
+   19   LOD      1    1    6,
+   20   LOD      1    1    5,
+   21   ADD     52          ,
+   22   STO     38          ,
+   23   F2U     15        18,
+   24   LDA      0    1    6,
+   25   LOD      1    1    6,
+   26   MKS     18        33,
+   27   LDC     24        99,
+   28   LDC     24        88,
+   29   CAL     19         6,
+   30   ADD     52          ,
+   31   STO     38          ,
+   32   LOD      1    1    6,
+   33   WRW     29         1,
+   34   WRL     63          ,
+   35   HLT     31          ,
+
+Starting address is    11
+

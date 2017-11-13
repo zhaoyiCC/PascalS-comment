@@ -487,9 +487,9 @@ k := k + 1;
       '{': 
         begin
           nextch;
-          if ch = '$' {*{*处理参数*}
+          if ch = '$'	{*处理程序的参数*}
           then options;
-          while ch <> '}' do 
+          while ch <> '}' do
             nextch;
           nextch;
           goto 1
@@ -583,6 +583,7 @@ procedure emit( fct: integer ); {*生成PCode方法，没有操作数*}
 
 procedure emit1( fct, b: integer ); {*生成PCode方法，有一个操作数*}
   begin
+    writeln('fct = ',fct,' b= ',b);
     if lc = cmax {*超出了生成代码的数量限制，即800*}
     then fatal(6); 
     with code[lc] do {*修改P代表表code的记录值*}
@@ -1249,9 +1250,11 @@ procedure expression(fsys:symset; var x:item); forward; {*forward代表内层的
     var x : item;
           lastp,cp,k : integer;
     begin
+        writeln('call!!!');
         emit1(18,i); {* mark stack *} {*MKS，标记栈*}
         lastp := btab[tab[i].ref].lastpar; {*最后一个参数在符号表的位置*}
         cp := i;
+        writeln('cp = ',cp,' lastp = ', lastp,' name= ',tab[cp].name);
         if sy = lparent {*左小括号，代表参数列表的开始*}
         then begin {* actual parameter list *}
                repeat
@@ -1260,9 +1263,11 @@ procedure expression(fsys:symset; var x:item); forward; {*forward代表内层的
                  then error(39)
                  else begin
                         cp := cp + 1; {*cp指针往后移动一个*}
+                        writeln('name = ',tab[cp].name);
                         if tab[cp].normal {*false:变参; true:值参*}
                         then begin {* value parameter *} {*值形参*}
                                expression( fsys+[comma, colon,rparent],x); {*递归处理表达式x*}
+                               writeln('x.typ = ', x.typ, 'tab[cp].cp = ',tab[cp].typ, 'x.ref = ',x.ref);
                                if x.typ = tab[cp].typ 
                                then begin
                                       if x.ref <> tab[cp].ref {*指向要相同*}
@@ -1282,10 +1287,11 @@ procedure expression(fsys:symset; var x:item); forward; {*forward代表内层的
                                then error(2)
                                else begin
                                       k := loc(id); 
+                                      writeln('id = ',id,'k = ',k);
                                       insymbol;
                                       if k <> 0
                                       then begin
-                                             if tab[k].obj <> vvariable
+                                             if tab[k].obj <> vvariable {*获取到的类型必须是变量类型*}
                                              then error(37);
                                              x.typ := tab[k].typ;
                                              x.ref := tab[k].ref;
@@ -1399,24 +1405,24 @@ procedure expression(fsys:symset; var x:item); forward; {*forward代表内层的
                 else error(4)
               end {* standfct *} ;
             begin {* factor *}
-              x.typ := notyp;
+              x.typ := notyp; {*初始化返回值类型，默认为无类型*}
               x.ref := 0;
-              test( facbegsys, fsys,58 );
-              while sy in facbegsys do
+              test( facbegsys, fsys,58 ); 
+              while sy in facbegsys do {*因子开始符号*} 
                 begin
-                  if sy = ident
+                  if sy = ident {*识别到标识符*}
                   then begin
-                         i := loc(id);
+                         i := loc(id); {*标识符的位置是i*}
                          insymbol;
-                         with tab[i] do
+                         with tab[i] do 
                            case obj of
-                             konstant: begin
+                             konstant: begin {*常量类型*}
                                          x.typ := typ;
                                          x.ref := 0;
                                          if x.typ = reals
-then emit1(25,adr)
+                                          then emit1(25,adr)
                                          else emit1(24,adr)
-end;
+                                       end;
                              vvariable:begin
                                          x.typ := typ;
                                          x.ref := ref;
@@ -1489,9 +1495,10 @@ emit1(25,c1)
             end {* factor *};
           begin {* term   *}
             factor( fsys + [times,rdiv,idiv,imod,andsy],x);
-            while sy in [times,rdiv,idiv,imod,andsy] do
+            writeln('term: term', x.typ,' ',x.ref);
+            while sy in [times,rdiv,idiv,imod,andsy] do {**,/,div,mod,and*}
               begin
-                op := sy;
+                op := sy; 
                 insymbol;
                 factor(fsys+[times,rdiv,idiv,imod,andsy],y );
                 if op = times
@@ -1546,12 +1553,13 @@ emit1(25,c1)
                                end
               end {* while *}
           end {* term *};
-        begin {* simpleexpression *}
-          if sy in [plus,minus]
+        begin {* simpleexpression *} {*处理简单表达式*}
+          if sy in [plus,minus] {*加号减号*}
           then begin
-                 op := sy;
+                 op := sy; {*运算符*}
                  insymbol;
-                 term( fsys+[plus,minus],x);
+                 term( fsys+[plus,minus],x); {*处理项*}
+                 writeln('Simpleexpression: term', x.typ,' ',x.ref);
                  if x.typ > reals
                  then error(33)
                  else if op = minus
@@ -2786,7 +2794,7 @@ setup;
   write( 'result file : ' );
   readln( fprr );
   assign( prr, fprr );
-  reset ( prd );
+  {reset ( prd );}
   rewrite( prr );
 
   t := -1;
