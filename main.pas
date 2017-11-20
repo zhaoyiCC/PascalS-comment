@@ -520,7 +520,7 @@ procedure enter(x0:alfa; x1:objecttyp; x2:types; x3:integer );
         ref := 0;
         normal := true; {*这个变量除了变参都是true*}
         lev := 0;
-        adr := x3; {*在运行站S中分配存储单元的相对地址*}
+        adr := x3; {*在运行栈S中分配存储单元的相对地址*}
       end
   end; {* enter *}
 
@@ -638,7 +638,7 @@ mne[46] := 'NEQ  ';   mne[47] := 'LSS  ';  mne[48] := 'LEQ  ';
     writeln(psout);
     writeln(psout,'   identifiers  link  obj  typ  ref  nrm  lev  adr');
     writeln(psout);
-    for i := btab[1].last to t do {*???为啥不是从1开始，这里是输出所有的标识符吗，然后不输出全局变量这样*}
+    for i := btab[1].last to t do {*不需要输出0..btab[1].last，因为btab[1].last也就是28也就是把所有Pascal自带类型都存进去的位置，这个后面就是我们自己定义的变量了*}
     with tab[i] do
         writeln( psout, i,' ', name, link:5, ord(obj):5, ord(typ):5,ref:5, ord(normal):5,lev:5,adr:5);
     writeln( psout );
@@ -758,8 +758,8 @@ begin
             j := btab[display[i]].last; {*从这个块的最后一个变量开始*}
             while tab[j].name <> id do
                 j := tab[j].link; {*不停地向前匹配是不是名字一样*}
-            i := i - 1;
-        until ( i < 0 ) or ( j <> 0 );
+            i := i - 1; {保证可以查过所有的标识符，包括类型名(相当于都在level为0的里面)}
+        until ( i < 0 ) or ( j <> 0 ); 
         if j = 0 {*没有找到这个标识符，说明定义的类型不存在，报错*}
         then error(0);
         loc := j
@@ -1056,7 +1056,7 @@ var eltp : types; {*数组保存的是什么类型的变量*}
                         test( [ident, varsy],[rparent]+fsys,6)
                  end
         end {* while *};
-      if sy = rparent {*函数参数的最后应该是一个右括号*}
+      if sy = rparent {*函数参数的最后应该是一个右括号，之后如果是函数就是: integer;这种，过程就是;*}
       then begin
              insymbol;
              test( [semicolon, colon],fsys,6 )
@@ -1137,7 +1137,7 @@ procedure constdec; {*处理常量声明*}
               insymbol;
               entervariable;
             end;
-          if sy = colon 
+          if sy = colon {*冒号代表前面一坨var的变量读完了*}
           then insymbol
           else error(5);
           t1 := t;
@@ -1426,23 +1426,23 @@ procedure expression(fsys:symset; var x:item); forward; {*forward代表内层的
                              vvariable:begin
                                          x.typ := typ;
                                          x.ref := ref;
-                                         if sy in [lbrack, lparent,period]
+                                         if sy in [lbrack, lparent,period] {*如果这个标识符后面跟的是[,(,. 那么说明不是简单的一个变量，而是什么数组啊函数啊记录啊等等*}
                                          then begin
                                                 if normal
                                                 then f := 0
-else f := 1;
+                                                 else f := 1;
                                                 emit2(f,lev,adr);
-selector(fsys,x);
+                                                selector(fsys,x);
                                                 if x.typ in stantyps
                                                 then emit(34)
                                               end
-                                         else begin
+                                         else begin {*是一个简单的变量，例如整数ans*}
                                                 if x.typ in stantyps
-                                                then if normal
-                                                     then f := 1
-                                                     else f := 2
-                                                else if normal
-                                                     then f := 0
+                                                then if normal {*如果是值形参*}
+                                                     then f := 1 {*LOD,直接把这个变量的值取出来放到栈顶空间去*}
+                                                     else f := 2 {*LDI，间接取值???*}
+                                                else if normal {*变参，取这个*}
+                                                     then f := 0 {*LDA，取这个数的地址*}
 else f := 1;
                                                 emit2(f,lev,adr)
 end
@@ -1644,8 +1644,8 @@ emit1(25,c1)
         x.typ := tab[i].typ; {*把x的值用tab[i]的类型*}
         x.ref := tab[i].ref;
         if tab[i].normal
-        then f := 0
-        else f := 1;
+        then f := 0 {LDA指令，将变量地址填入栈顶，因为不是变参???}
+        else f := 1; {LOD指令，将值填入栈顶，代表是变参}
         emit2(f,lv,ad);
         if sy in [lbrack,lparent,period]
         then selector([becomes,eql]+fsys,x);
@@ -1891,7 +1891,7 @@ procedure caselabel; {*各种标号，将标号对应的目标代码入口地址
                if x.typ <> cvt
                then error(19)
              end
-        else skip([dosy]+fsys,55); {*一直调到do*}
+        else skip([dosy]+fsys,55); {*一直跳到do*}
         lc1 := lc; {*F1U指令的位置*}
         emit(f); {*打印F1U/F1D指令*}
         if sy = dosy {*如果标识符是do*}
@@ -1903,7 +1903,7 @@ procedure caselabel; {*各种标号，将标号对应的目标代码入口地址
         code[lc1].y := lc {*调用F1U的指令标记成之前的之前的指令位置*}
 end {* forstatement *};
 
-    procedure standproc( n: integer ); {*处理主程序中的begin end部分*}
+    procedure standproc( n: integer ); {*处理pascal的标准函数，例如read,readln,wrtite,writeln*}
       var i,f : integer;
           x,y : item;
       begin
@@ -1961,14 +1961,14 @@ end {* forstatement *};
                                   insymbol
                                 end
                            else begin
-expression(fsys+[comma,colon,rparent],x);
-if not( x.typ in stantyps )
+                                  expression(fsys+[comma,colon,rparent],x);
+                                  if not( x.typ in stantyps )
                                   then error(41);
                                   if sy = colon
                                   then begin
-insymbol;
+                                         insymbol;
                                          expression( fsys+[comma,colon,rparent],y);
-if y.typ <> ints
+                                         if y.typ <> ints
                                          then error(43);
                                          if sy = colon
                                          then begin
@@ -1982,15 +1982,15 @@ if y.typ <> ints
                                               end
                                          else emit1(30,ord(x.typ))
                                        end
-else emit1(29,ord(x.typ))
-end
+                                  else emit1(29,ord(x.typ))
+                                end
                          until sy <> comma;
                          if sy = rparent
                          then insymbol
                          else error(4)
                        end;
                   if n = 4
-                  then emit(63)
+                  then emit(63) {*代表是writeln       *}
                 end; {* write *}
         end {* case *};
       end {* standproc *} ;
@@ -2007,7 +2007,7 @@ end
                               prozedure:       if tab[i].lev <> 0
                                                then call(fsys,i)
                                                else standproc(tab[i].adr);
-                              funktion:        if tab[i].ref = display[level]
+                              funktion:        if tab[i].ref = display[level] {*如果这个函数名指向的指针和当前层的指针相同，即对应了同一个btab里的分程序索引，则说明就是函数里的函数名(在Pascal的语法里也就是返回值)，此时我们需要调用赋值语句*}
                                                then assignment(tab[i].lev+1,0)
                                                else error(45)
                             end {* case *}
@@ -2022,8 +2022,8 @@ end
       test( fsys, [],14);
     end {* statement *};
   begin  {* block *}
-    dx := 5;
-    prt := t;
+    dx := 5; {*变量存储分配的索引，预设为5，留出空间给内务区*}
+    prt := t; {*保存的通常是函数名或者过程名在符号表里的位置*}
     if level > lmax {*子程序的层次不允许大于5，即不能嵌套太多procedure*}
         then fatal(5);
     test([lparent,colon,semicolon],fsys,14); {*判断sy是不是左括号或者分号或者句号*}
@@ -2036,7 +2036,7 @@ end
         then parameterlist;
     btab[prb].lastpar := t;
     btab[prb].psize := dx;
-    if isfun
+    if isfun {如果是函数，我们还需要把函数名这个tab保存一个类型，因为在Pascal里面，函数是有返回类型的}
     then if sy = colon
          then begin
                 insymbol; {* function type *}
@@ -2067,7 +2067,7 @@ end
         procdeclaration; {*处理过程的声明*}
       test([beginsy],blockbegsys+statbegsys,56)
     until sy in statbegsys; {*直到遇到begin或其它条件判断的选项*}
-    tab[prt].adr := lc;
+    tab[prt].adr := lc; {*这句话代表的是这一函数或者过程(即block)的起始地址是哪一句Pcode,例如tab[28]=11就是第一个block也就是主程序的入口，即代表主程序从第11行Pcode开始*}
     insymbol;
     statement([semicolon,endsy]+fsys);
     while sy in [semicolon]+statbegsys do
@@ -2089,11 +2089,11 @@ procedure interpret;
   var ir : order ;         {* instruction buffer *}
       pc : integer;        {* program counter *}
       t  : integer;        {* top stack index *}
-b  : integer;        {* base index *}
+      b  : integer;        {* base index *}
       h1,h2,h3: integer;
       lncnt,ocnt,blkcnt,chrcnt: integer;     {* counters *}
       ps : ( run,fin,caschk,divchk,inxchk,stkchk,linchk,lngchk,redchk );
-fld: array [1..4] of integer;  {* default field widths *}
+      fld: array [1..4] of integer;  {* default field widths *}
       display : array[0..lmax] of integer;
       s  : array[1..stacksize] of   {* blockmark:     *}
             record
@@ -2732,10 +2732,11 @@ procedure setup;
     sps[';'] := semicolon;
   end {* setup *};
 
-procedure enterids;
+procedure enterids; {*把全部的的标准类型都先填入到tab里，adr对于类型名，实际填的是该类型数据所需存储单元的数目*}
   begin
+    {*第一个参数代表name即名字，第二个参数代表obj即种类，第三个参数代表类型，第四个参数代表adr，对于类型其代表的是所需要存储单元的数目*}
     enter('          ',vvariable,notyp,0); {* sentinel *}
-    enter('false     ',konstant,bools,0);
+    enter('false     ',konstant,bools,0); 
     enter('true      ',konstant,bools,1);
     enter('real      ',typel,reals,1);
     enter('char      ',typel,chars,1);
@@ -2743,7 +2744,7 @@ procedure enterids;
     enter('integer   ',typel,ints,1);
     enter('abs       ',funktion,reals,0);
     enter('sqr       ',funktion,reals,2);
-    enter('odd       ',funktion,bools,4);
+    enter('odd       ',funktion,bools,4); {???为啥odd需要4个存储单元，接下来递增的同理}
     enter('chr       ',funktion,chars,5);
     enter('ord       ',funktion,ints,6);
     enter('succ      ',funktion,chars,7);
@@ -2834,7 +2835,7 @@ setup;
                                    else error(0);
                               insymbol
                             end
-                     until sy <> comma; {*反复读入，直到碰到逗号位置*}
+                     until sy <> comma; {*反复读入，直到不是逗号，即)，因为是(input, outout)相当于最后那个)*}
                 if sy = rparent 
                 then insymbol
                 else error(4);
