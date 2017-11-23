@@ -675,7 +675,8 @@ mne[46] := 'NEQ  ';   mne[47] := 'LSS  ';  mne[48] := 'LEQ  ';
         writeln( psout, ',' )
       end;
       writeln( psout );
-      writeln( psout, 'Starting address is ', tab[btab[1].last].adr:5 )
+      writeln( psout, 'Starting address is ', tab[btab[1].last].adr:5 ) {*输出Pcode程序的起始地址，相当于主函数begin下的第一句的起始地址，因为生成的PCode的顺序是按照程序的顺序的，即从上而下生成，而上面可能有很多函数这样。*}
+      {*之前有tab[prt].adr := lc;就是把这一函数或者过程(即block)的起始地址是哪一句Pcode,例如tab[28]=11就是第一个block也就是主程序的入口*}
     end {* printtables *};
 
 
@@ -1423,7 +1424,7 @@ procedure expression(fsys:symset; var x:item); forward; {*forward代表内层的
                                           then emit1(25,adr)
                                          else emit1(24,adr)
                                        end;
-                             vvariable:begin
+                             vvariable:begin {*变量类型*}
                                          x.typ := typ;
                                          x.ref := ref;
                                          if sy in [lbrack, lparent,period] {*如果这个标识符后面跟的是[,(,. 那么说明不是简单的一个变量，而是什么数组啊函数啊记录啊等等*}
@@ -1456,7 +1457,7 @@ end
                                        end
                            end {* case,with *}
                        end
-                  else if sy in [ charcon,intcon,realcon ]
+                  else if sy in [ charcon,intcon,realcon ] {*代表是字符或者整数或者实数*}
                        then begin
                               if sy = realcon
                               then begin
@@ -2134,17 +2135,17 @@ begin
   procedure inter0;
     begin
       case ir.f of
-        0 : begin {* load addrss *}
-              t := t + 1;
+        0 : begin {* load addrss *} {*LDA指令，取地址*}
+              t := t + 1; {*上移一个栈顶指针*}
               if t > stacksize
               then ps := stkchk
-              else s[t].i := display[ir.x]+ir.y
+              else s[t].i := display[ir.x]+ir.y {*当前level的起始地址加上偏移量，得到*}
             end;
-        1 : begin  {* load value *}
+        1 : begin  {* load value *} {*LOD*}
               t := t + 1;
               if t > stacksize
               then ps := stkchk
-              else s[t] := s[display[ir.x]+ir.y]
+              else s[t] := s[display[ir.x]+ir.y] {*从这个地址中取出来值放到栈顶*}
             end;
         2 : begin  {* load indirect *}
               t := t + 1;
@@ -2348,11 +2349,11 @@ begin
                  end;
                t := t-2
              end;
-        24 : begin  {* literal *}
+        24 : begin  {* literal *} {*LDC，装进去常量*}
                t := t+1;
                if t > stacksize
                then ps := stkchk
-               else s[t].i := ir.y
+               else s[t].i := ir.y {把y放到栈顶空间去*}
              end;
         25 : begin  {* load real *}
                t := t+1;
@@ -2420,7 +2421,7 @@ if chrcnt > lineleng
                     end;
                t := t-2
              end;
-        31 : ps := fin;
+        31 : ps := fin; {*HLT，程序结束*}
         32 : begin  {* exit procedure *}
                t := b-1;
                pc := s[b+1].i;
@@ -2441,9 +2442,9 @@ if chrcnt > lineleng
                else write(prr,s[t-2].r:s[t-1].i:s[t].i);
                t := t-3
              end;
-        38 : begin  {* store *}
-               s[s[t-1].i] := s[t];
-               t := t-2
+        38 : begin  {* store *} 
+               s[s[t-1].i] := s[t]; {*把栈顶内容复制到次元素*}
+               t := t-2 {*同时弹出这两个元素*}
              end;
         39 : begin
                t := t-1;
@@ -2589,17 +2590,17 @@ if chrcnt > lineleng
     fld[2] := 22;
     fld[3] := 10;
     fld[4] := 1;
-    repeat
+    repeat {*反复执行，直到指令的状态ps不为run，因为最终的终止指令会让PS=FIN*}
       ir := code[pc];
       pc := pc+1;
       ocnt := ocnt+1;
       case ir.f div 10 of
-0 : inter0;
+        0 : inter0;
         1 : inter1;
         2 : inter2;
         3 : inter3;
         4 : inter4;
-5 : inter5;
+        5 : inter5;
         6 : inter6;
       end; {* case *}
     until ps <> run;
@@ -2763,7 +2764,7 @@ procedure enterids; {*把全部的的标准类型都先填入到tab里，adr对�
     enter('readln    ',prozedure,notyp,2);
     enter('write     ',prozedure,notyp,3);
     enter('writeln   ',prozedure,notyp,4);
-    enter('          ',prozedure,notyp,0);
+    enter('          ',prozedure,notyp,0); {*重要！就是把主函数放进符号表里，因为我们知道函数和过程是也要放进符号表的，这里面先把主过程放进符号表里，因为没有人调用主过程，所以我们先放进去便于之后的处理*}
   end;
 
 
@@ -2843,7 +2844,7 @@ setup;
               end
        end;
   enterids;
-  with btab[1] do
+  with btab[1] do {*记录主函数的情况，首先这个last我们可以考虑成是整个文件的最后一个出现的标识符，它就是主过程*}
     begin
       last := t;
       lastpar := 1;
